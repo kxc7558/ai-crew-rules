@@ -1,109 +1,177 @@
-# AI Crew Rules 🤖🛠️
+# AI Crew Rules
 
-**给 AI 编程工具装上"施工队规矩"：一个 Claude Code skill，让 AI 写代码分层有序、先查开源、多 AI 不打架。**
-
-你说一句"给我的项目装 AI 施工队规矩"，skill 自动完成：分层骨架铺设 → 项目启动关卡安装 → 多 AI 任务台账配置。
+**Discipline for AI coding crews.** One install puts three things into a project: a layered structure the AI has to respect, a gate that makes it search open source before writing anything new, and a shared task ledger so two AI tools never overwrite each other's work.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Claude Code](https://img.shields.io/badge/for-Claude%20Code-blueviolet)](https://claude.com/claude-code)
+[![Claude Code](https://img.shields.io/badge/Claude%20Code-plugin-blueviolet)](https://claude.com/claude-code)
+[![Cursor](https://img.shields.io/badge/Cursor-supported-black)](.cursor/rules/ai-crew.mdc)
+[![Codex](https://img.shields.io/badge/Codex-supported-black)](AGENTS.md)
 
-## 解决什么问题
+---
 
-用 AI 写代码最常见的三个失控现场：
+## The problem
 
-| 痛点 | 没装规矩时 | 装了之后 |
-|------|-----------|---------|
-| 🗂️ 代码乱放 | 函数写得对但放错层，改一处崩三处 | 四层架构(api→service→db→shared)，bug 定位变查表 |
-| 🔁 重复造轮子 | AI 闷头自研一个社区早已有的东西 | 启动关卡强制先搜开源，搜过才许动手 |
-| 🤼 多 AI 打架 | Claude Code 和 Codex 互相覆盖代码 | 任务台账：领任务先占坑、心跳报平安、交接留档 |
+You run more than one AI coding tool. Maybe Claude Code for daily work, Codex for the hard problems, Cursor in the editor. Each one is capable on its own. Together they are a hazard:
 
-## 快速开始
+| Failure | What it looks like |
+| --- | --- |
+| 🗂️ **Code lands wherever** | The function is correct, the layer is wrong. You fix one thing and break three. |
+| 🔁 **The wheel gets reinvented** | Your AI quietly rebuilds what the open-source community already maintains — and never mentions it. |
+| 🤼 **Agents overwrite each other** | Claude Code and Codex both edit `export.js` for different reasons. Last save wins. Nobody notices until it breaks. |
+
+Asking more politely does not fix this. The rules have to live in the repository, where every tool reads them.
+
+## What gets installed
+
+| Piece | Lives in | What it does |
+| --- | --- | --- |
+| **Layered scaffold** | project root | `api/` `service/` `db/` `shared/`, each with its own README of responsibilities. Bug localization becomes a table lookup: wrong output → service, wrong data → db. |
+| **Startup gate** | `UserPromptSubmit` hook | Detects "new project" / "new feature" requests and forces a real open-source search before any code is written. Fail-open: a broken hook can never block your session. |
+| **Task ledger** | `data/ai-tasks/` | One Markdown file per task. Claim before you code, heartbeat on every step, two hours of silence and another AI may take over. |
+
+## Install
+
+### As a Claude Code plugin (recommended)
+
+```text
+/plugin marketplace add kxc7558/ai-crew-rules
+/plugin install ai-crew@ai-crew
+```
+
+The hook ships with the plugin, so there is no `settings.json` to edit. Then, in any project:
+
+> set up ai-crew rules for this project
+
+The skill inspects the project, asks two questions, and installs what fits. Each write is explained before it happens.
+
+### Manually, or for another tool
 
 ```bash
-# 1. 把 skills/ai-crew 复制到你的 Claude Code 技能目录
-mkdir -p ~/.claude/skills
-cp -r skills/ai-crew ~/.claude/skills/
-
-# 2. 重启 Claude Code，然后对它说：
-#    「给我的项目装 AI 施工队规矩」
+git clone https://github.com/kxc7558/ai-crew-rules
 ```
 
-skill 会引导 AI 完成三件事（每件都会先征求你确认）：
+Then copy what you need:
 
-1. **分层骨架** — 把 `templates/layered-project/` 铺进项目（含各层 README 守则与接口清单）
-2. **启动关卡** — 安装 UserPromptSubmit 钩子，检测到"新建项目/新功能"类消息时自动注入两步指令：先搜开源、再评估分层
-3. **多 AI 任务台账** — 装上任务台账机制：每个任务一个档案（谁在办/干到哪/怎么办完的），任何 AI 按同一流程领活交接，防打架不依赖"谁强谁干啥"的人为分工
+| You want | Copy this | To here |
+| --- | --- | --- |
+| Layered scaffold | `skills/ai-crew/templates/layered-project/` | your project root |
+| Architecture rule | `skills/ai-crew/templates/rules/layered-architecture.md` | `~/.claude/rules/common/` |
+| Task ledger rule | `skills/ai-crew/templates/rules/ai-task-ledger.md` | `~/.claude/rules/common/` |
 
-## 内容一览
+Cursor and Codex users can skip the plugin entirely — see [Works with](#works-with).
 
-```
-skills/ai-crew/
-├── SKILL.md                        # skill 本体：触发条件与执行流程
-├── templates/
-│   ├── layered-project/            # 分层项目骨架
-│   │   ├── CLAUDE.md               # 项目宪法：分层地图 + bug 定位速查
-│   │   └── {api,service,db,shared}/README.md  # 各层上岗守则 + 对外接口清单
-│   └── rules/                      # 全局规则文件模板
-│       ├── layered-architecture.md # 分层架构规则
-│       └── ai-task-ledger.md       # 多 AI 任务台账（领活/占坑/心跳/交接）
-└── hooks/
-    └── project-startup-gate.py     # 启动关卡钩子（关键词触发，fail-open）
-```
+## The startup gate, in full
 
-## 核心理念
+This is the text the hook injects when it detects a kickoff request:
 
-### 四层架构（借 OSI 的思想，不用它的七层）
+> **[Project Startup Gate]** A project/feature kickoff request was detected. Before writing ANY code, complete these two steps:
+>
+> 1. **Open-source first (hard gate):** search the open-source community (GitHub, npm/PyPI, HuggingFace, etc.) for existing solutions. Adoption priority: use as-is > port & adapt > wrap > build from scratch. You may only write original code after a real search confirms nothing suitable exists, and you must tell the user what you searched and why nothing fit.
+>
+> 2. **Layered architecture evaluation:** decide whether the four-layer layout (`api -> service -> db -> shared`) is warranted. Long-lived project → use the scaffold, then `git init` and commit the scaffold as the first node. One-off script → skipping layers is fine, state the reason in one line.
+>
+> Finally, report both conclusions to the user in plain non-technical language.
 
-```
-api（接口层）        只接客：收请求、验参数、返结果
- └→ service（业务层） 只动脑：业务规则、流程编排
-        └→ db（数据层） 只管仓：数据的存取改查
-shared（公共层）      只做工具：人人可用，不依赖任何人
-```
+The gate is a nudge, not a cage. It fires on kickoff keywords — edit `KEYWORDS` at the top of `hooks/project-startup-gate.py` to match how you actually phrase things.
 
-唯一铁律：**上层可调下层，下层禁调上层，跨层必经接口**。这一条就实现了"哪里报错 → 定位到层 → 只改那层"。
+## The task ledger
 
-### 启动关卡（框架级强制，不靠 AI 自觉）
+The ledger is the part that solves multi-AI collisions, and it does so without anyone agreeing on a fixed division of labor:
 
-每条消息经过钩子检查，命中启动关键词时 AI 会被注入：
+```markdown
+---
+task: switch exports to month grouping
+state: in-progress
+owner: claude-code
+claimed_at: 2026-09-13 10:00
+heartbeat: 2026-09-13 10:40
+---
+## Goal
+What "done" means, in one or two sentences.
 
-> 1. 先搜开源社区（GitHub / npm / PyPI / HuggingFace），下载即用 > 移植改造 > 包一层用 > 全新自研
-> 2. 评估是否需要分层：要长期维护 → 用骨架；一次性脚本 → 说明原因即可
+## Progress
+- 10:00 claimed, reading the export module
+- 10:40 decided: group by month at the service layer, db untouched
 
-### 多 AI 任务台账（流程机制，不按人定制）
-
-```
-open ──领活──▶ in-progress ──干完──▶ done
-                 │
-                 └卡壳──▶ blocked ──解除──▶ open
+## Handoff notes
+(left empty until done or blocked)
 ```
 
-每个任务一个档案文件（谁在办 / 干到哪 / 心跳时间 / 交接备注），铁律四条：
+```text
+open ──claim──▶ in-progress ──finish──▶ done
+                   │
+                   └──stuck──▶ blocked ──unblock──▶ open
+```
 
-1. **先占坑再动代码**——台账里没登记就不改代码（只读审查除外）
-2. **一个任务一个主人**——在办的任务别人不碰
-3. **2 小时没心跳 = 离岗**——其他 AI 可接管，接管写进档案
-4. **交接靠档案**——改了什么、留了什么坑，写清楚给下一个 AI
+Five rules, and only the first one is really iron:
 
-防打架不靠"谁是谁的工种"，靠台账本身——工具阵容怎么变都不用改规则。
+1. **Claim before code.** No ledger entry, no edits. (Read-only review never needs to claim.)
+2. **One task, one owner.** Two AIs never share an in-progress task.
+3. **Heartbeat or let go.** Two hours without a heartbeat means the owner walked away and another AI may take over.
+4. **Commit at every done step**, so even a collision is recoverable.
+5. **Hand off through the ledger**, not through verbal summaries.
 
-## 适用与不适用
+### Why a ledger and not a role table?
 
-- ✅ 用 AI 维护多个长期项目、多套 AI 工具混用的人
-- ✅ 非技术背景、靠 AI 全程实现的项目（skill 输出面向人的大白话）
-- ❌ 玩具脚本、一次性实验（分层是开销不是收益）
-- ❌ 已有严格架构约束的团队项目（和现有规范合并时先读 `docs/FAQ.md`）
+Role tables ("Claude Code does implementation, Codex does review") are personal. They depend on which subscriptions you pay for and how strong each model is that month, and they go stale the moment a quota changes. The ledger is impersonal and self-correcting: whoever claims a task does it, and quality gates belong in the task's own checklist rather than in someone's identity.
 
-## 文档
+## How to know it's working
 
-- [FAQ](docs/FAQ.md) — 常见问题：层数为什么是 4 不是 7、和现有项目怎么共存、钩子误触发怎么办
-- [定制指南](docs/CUSTOMIZE.md) — 改关键词、换分层命名（前端 pages/store 映射）、适配其他 AI 工具
+- The AI asks a clarifying question **before** writing code, not after breaking something.
+- New features arrive with a one-line "I searched X and Y, here's why they didn't fit."
+- Diffs touch the layer the task belongs to, and nothing else.
+- Two AI tools working on the same repo stop producing conflicting edits.
+- `git log` shows ledger updates committed alongside the code they describe.
 
-## 致谢与灵感
+## When not to use this
 
-- [Anthropic Claude Code hooks 文档](https://docs.claude.com/en/docs/claude-code/hooks)
-- [disler/claude-code-hooks-mastery](https://github.com/disler/claude-code-hooks-mastery) — hooks 学习资料
-- OSI 七层模型 — 分层思想的源头
+- **Throwaway scripts and one-off experiments.** The layering is overhead, not a benefit. The startup gate will tell you so and move on.
+- **Projects with an existing strict architecture.** Merge the rules with your current conventions rather than replacing them — see [docs/CUSTOMIZE.md](docs/CUSTOMIZE.md).
+- **Single AI tool, single short-lived project.** You probably only want the startup gate.
+
+## Works with
+
+| Tool | How |
+| --- | --- |
+| **Claude Code** | Plugin (above), or the skill at `skills/ai-crew/` |
+| **Cursor** | [.cursor/rules/ai-crew.mdc](.cursor/rules/ai-crew.mdc) — a committed project rule |
+| **Codex** | [AGENTS.md](AGENTS.md) — Codex reads this at the repo root |
+| **Anything else** | Point it at `skills/ai-crew/templates/rules/`; the rules are plain Markdown |
+
+## Repository layout
+
+```text
+ai-crew-rules/
+├── .claude-plugin/          # Claude Code plugin + marketplace manifests
+├── hooks/hooks.json         # registers the startup gate (ships with the plugin)
+├── skills/ai-crew/
+│   ├── SKILL.md             # the installer the AI follows
+│   ├── hooks/               # the gate script
+│   └── templates/
+│       ├── layered-project/ # scaffold: constitution + per-layer READMEs
+│       └── rules/           # layered-architecture.md, ai-task-ledger.md
+├── .cursor/rules/           # Cursor adapter
+├── AGENTS.md                # Codex and other agents
+├── docs/                    # FAQ + customisation guide (EN / 中文)
+└── tests/                   # startup gate regression suite
+```
+
+## Tests
+
+```bash
+python tests/test_startup_gate.py
+```
+
+Feeds 33 real prompts through the hook — 19 that should trigger it, 14 that should not — and fails if either group drifts. Run it after editing `KEYWORDS`.
+
+## Docs
+
+- [FAQ](docs/FAQ.md) ([中文](docs/FAQ.zh-CN.md)) — why four layers and not seven, coexisting with existing conventions, hook false positives
+- [Customize](docs/CUSTOMIZE.md) ([中文](docs/CUSTOMIZE.zh-CN.md)) — change the keywords, remap layer names for frontend projects, adapt to other tools
+
+## Credits
+
+Inspired by [Anthropic's Claude Code hooks documentation](https://docs.claude.com/en/docs/claude-code/hooks), [disler/claude-code-hooks-mastery](https://github.com/disler/claude-code-hooks-mastery), and the OSI model — the origin of the layered idea.
 
 ## License
 

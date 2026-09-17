@@ -1,36 +1,40 @@
 ---
 name: ai-crew
-description: 给项目装上 AI 施工队规矩：四层分层架构骨架、项目启动关卡（先搜开源+分层评估钩子）、多 AI 任务台账（防打架）。当用户说"装 AI 施工队规矩""给项目装规矩""ai-crew"或要求建立分层架构/开源优先/多 AI 协作制度时使用。
+description: Installs AI Crew Rules into a project — a four-layer architecture scaffold, a project startup gate (open-source-first + layering evaluation hook), and a multi-AI task ledger that prevents agents from overwriting each other. Use when the user says "set up ai-crew rules", "install AI crew rules", "add AI discipline to this project", "装 AI 施工队规矩", "给项目装规矩", or asks for layered architecture / open-source-first / multi-AI coordination conventions.
 ---
 
-# AI Crew Rules 安装器
+# AI Crew Rules Installer
 
-你要为用户的项目安装一套"AI 施工队规矩"。按以下流程执行，**每一步完成后用一句非技术语言向用户汇报**，涉及写入用户配置的操作必须先说明再执行。
+You are installing "AI Crew Rules" into the user's project. Follow the steps below. **After each step, report back in one plain sentence.** Any write to the user's configuration must be explained before it happens.
 
-## 第 0 步：了解环境
+## Step 0: Understand the environment
 
-1. 确认目标项目目录（当前工作目录，或用户指定的目录）
-2. 检查项目是否已有 git 仓库、已有的 CLAUDE.md / AGENTS.md / 规则文件（避免覆盖，已有内容要走合并）
-3. 询问用户（一次问完）：
-   - 项目是长期维护还是一次性脚本？（决定要不要分层）
-   - 有没有多个 AI 工具共用项目？台账放哪（仓库内 / 共享知识库）？
+1. Confirm the target project directory (the current working directory, or one the user names).
+2. Check whether the project already has git, an existing `CLAUDE.md` / `AGENTS.md` / rules files. Never overwrite — merge.
+3. Ask the user once, all at once:
+   - Is this a long-lived project or a one-off script? (This decides whether layering is warranted.)
+   - Will more than one AI tool work on this repo? Where should the ledger live (in the repo, or a shared directory)?
 
-## 第 1 步：铺设分层骨架
+## Step 1: Lay the architecture scaffold
 
-仅当项目需要长期维护时执行；一次性脚本跳过并说明原因。
+Only when the project is long-lived. For one-off scripts, skip and say why in one line.
 
-1. 把 `templates/layered-project/` 下的内容复制到项目根目录：
-   - `CLAUDE.md` — 项目宪法
-   - `api/README.md`、`service/README.md`、`db/README.md`、`shared/README.md` — 各层守则
-2. 若项目已有 CLAUDE.md，把宪法的"分层地图与调用方向"一节合并进去，不整体覆盖
-3. 若项目类型使目录名不合适（如纯前端项目），参照宪法中的映射说明改名（如 pages/store），方向规则不变
-4. **复制完成后立即 `git init`（若无 git）并提交首个节点**，commit message: `feat: ai-crew layered scaffold`
+1. Copy the contents of `templates/layered-project/` into the project root:
+   - `CLAUDE.md` — the project constitution
+   - `api/README.md`, `service/README.md`, `db/README.md`, `shared/README.md` — per-layer rules
+2. If the project already has a `CLAUDE.md`, merge only the "layer map and call direction" section into it. Do not replace the whole file.
+3. If the directory names don't fit the project type (a pure frontend, say), rename them per the mapping note in the constitution — the direction rule stays unchanged.
+4. **Immediately after copying, `git init` if needed and commit the scaffold as the first node.** Message: `feat: ai-crew layered scaffold`
 
-## 第 2 步：安装启动关卡钩子
+## Step 2: Install the startup gate hook
 
-1. 把 `hooks/project-startup-gate.py` 复制到用户全局钩子目录：
-   - Claude Code：`~/.claude/hooks/project-startup-gate.py`
-2. 编辑 `~/.claude/settings.json`，在 `hooks` 下合并加入（**保留已有配置，禁止覆盖整个文件**）：
+**First check whether the hook is already provided.** If this skill is being read from a Claude Code plugin directory (a path containing `plugins/` or `marketplaces/`), the plugin already registers the hook through its `hooks/hooks.json`. In that case **skip this step entirely** and tell the user the hook came with the plugin — do not edit `settings.json`, or the hook will fire twice.
+
+Otherwise, install it manually:
+
+1. Copy `hooks/project-startup-gate.py` to the user's global hooks directory:
+   - Claude Code: `~/.claude/hooks/project-startup-gate.py`
+2. Edit `~/.claude/settings.json` and **merge** the following into the existing `hooks` key — never replace the file:
 
 ```json
 {
@@ -40,7 +44,7 @@ description: 给项目装上 AI 施工队规矩：四层分层架构骨架、项
         "hooks": [
           {
             "type": "command",
-            "command": "python \"<用户主目录>/.claude/hooks/project-startup-gate.py\"",
+            "command": "python \"<home>/.claude/hooks/project-startup-gate.py\"",
             "timeout": 10
           }
         ]
@@ -50,38 +54,38 @@ description: 给项目装上 AI 施工队规矩：四层分层架构骨架、项
 }
 ```
 
-   - Windows 下用绝对路径的 python.exe 和脚本路径
-   - 改完用 JSON 解析验证合法性，再向用户确认已安装
-3. 若用户主要工具不是 Claude Code（如 Codex 为主），跳过钩子，改为在 `~/.codex/AGENTS.md`（或对应工具的全局规则文件）中写入"开源优先 + 分层评估"两条硬规则（内容见第 4 步模板）
+   - On Windows use absolute paths for both `python.exe` and the script.
+   - After editing, validate the file parses as JSON, then confirm to the user.
+3. If the user's primary tool is not Claude Code (Codex, say), skip the hook and instead write the two hard rules — open-source-first and layering evaluation — into that tool's global rules entry point (e.g. `~/.codex/AGENTS.md`, merged if it already exists). The rule text is in Step 4.
 
-## 第 3 步：配置规则文件
+## Step 3: Configure the rules files
 
-1. 把 `templates/rules/layered-architecture.md` 复制到 `~/.claude/rules/common/`（Claude Code 全局规则，目录不存在则创建）
-2. 该文件末尾引用的骨架路径若与第 1 步实际路径不同，改成实际路径
+1. Copy `templates/rules/layered-architecture.md` to `~/.claude/rules/common/` (create the directory if needed).
+2. If the scaffold path referenced at the end of that file differs from where Step 1 actually put things, update it to the real path.
 
-## 第 4 步：配置多 AI 任务台账
+## Step 4: Configure the multi-AI task ledger
 
-1. 把 `templates/rules/ai-task-ledger.md` 复制到 `~/.claude/rules/common/`（Claude Code 全局规则，目录不存在则创建）
-2. 和用户确认台账放哪（问一次）：
-   - 单项目为主 → 台账就放各项目仓库内 `data/ai-tasks/`（随 git 走，交接可追溯）
-   - 多项目常切换 → 共享目录（如知识库 `<vault>/ai-tasks/`），文件 frontmatter 里注明项目名
-3. 建台账目录并放一个 `_README.md` 说明用法（复制 `ai-task-ledger.md` 的 Lifecycle 一节即可）
-4. 若用户使用 Codex 等其他 AI 工具：把同一份 `ai-task-ledger.md` 写入其全局规则入口（如 `~/.codex/AGENTS.md`，已有内容走合并）——**台账机制对每个工具都是同一套，不按工具定制**
-5. 向用户说明：防打架不靠"谁是谁的工种"，靠台账本身——领任务先占坑、心跳报平安、2 小时没动静可接管、办完写交接
+1. Copy `templates/rules/ai-task-ledger.md` to `~/.claude/rules/common/`.
+2. Confirm with the user where the ledger should live (ask once):
+   - Mostly one project → `data/ai-tasks/` inside that repo (travels with git, so handoffs stay traceable)
+   - Many projects, switching often → a shared directory (e.g. `<vault>/ai-tasks/`), with the project name in each file's frontmatter
+3. Create the ledger directory with a `_README.md` explaining usage (the Lifecycle section of `ai-task-ledger.md` is enough).
+4. If the user runs other AI tools, write the same `ai-task-ledger.md` into their global rules entry point (e.g. `~/.codex/AGENTS.md`, merged). **The ledger mechanism is identical for every tool — never customize it per tool.**
+5. Tell the user plainly: collisions are prevented by the ledger itself, not by assigning roles — claim a task before coding, heartbeat every step, and after two hours of silence anyone may take over.
 
-## 第 5 步：收尾验证与汇报
+## Step 5: Verify and report
 
-1. 验证清单：
-   - [ ] 骨架四目录 + 各层 README 存在（若适用）
-   - [ ] settings.json JSON 合法且原有配置未丢失
-   - [ ] 钩子脚本存在且管道测试通过：`echo '{"prompt":"开发一个新功能"}' | python <钩子路径>` 应输出含 additionalContext 的 JSON
-   - [ ] 规则文件就位（分层 + 任务台账）
-   - [ ] 台账目录存在且含 `_README.md`
-2. git 提交所有变更（若适用）
-3. 用大白话向用户汇报装了什么、每件东西干什么，并提示：**新会话开始生效；当前已打开的其他会话需重启或打开一次 /hooks 菜单**
+1. Checklist:
+   - [ ] Four scaffold directories plus their per-layer READMEs exist (if applicable)
+   - [ ] `settings.json` is valid JSON and no pre-existing config was lost
+   - [ ] The hook script exists and passes a pipe test: `echo '{"prompt":"build a new feature"}' | python <hook path>` should emit JSON containing `additionalContext`
+   - [ ] Rules files are in place (layering + task ledger)
+   - [ ] The ledger directory exists and contains `_README.md`
+2. Commit everything if the project is a git repo.
+3. Report in plain language what was installed and what each piece does. Mention that **a new session is required for it to take effect**; already-open sessions need a restart or one visit to the `/hooks` menu.
 
-## 注意事项
+## Notes
 
-- 全程 fail-open：钩子安装失败不阻塞对话，向用户说明后继续
-- 不覆盖用户已有配置，只做合并；合并前先展示 diff 要点
-- 用户是非技术背景时，汇报禁止出现 JSON/钩子/路径等技术细节堆砌，用类比和结果说话
+- Fail-open throughout: if hook installation fails, do not block the conversation. Explain and continue.
+- Never overwrite the user's existing configuration — merge only, and show the key points of the diff first.
+- If the user is non-technical, report outcomes and analogies, not a pile of JSON, hook names, and file paths.

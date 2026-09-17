@@ -1,55 +1,43 @@
 # FAQ
 
-## 为什么是 4 层不是 OSI 的 7 层？
+## Why four layers and not OSI's seven?
 
-OSI 是网络协议模型，为异构设备互联设计。代码分层照搬 7 层会变成官僚主义：
-改一行要穿过 7 层仪式。实践共识是 4 层（接口/业务/数据/公共），Angular、
-Spring 等主流框架的分层都收敛在这个量级。层数的意义在"职责边界清晰"，
-不在"多"。
+OSI is a network protocol model, designed for interconnecting heterogeneous devices. Copying its seven layers into code turns layering into bureaucracy: one line of change has to pass through seven layers of ceremony. Practice converged on four (interface / business / data / common) — Angular, Spring, and most mainstream frameworks land in that range. The point of layering is clear responsibility boundaries, not a large number.
 
-## 已有项目怎么共存？要推倒重来吗？
+## Can I adopt this in a project that already exists?
 
-不要。两种方式：
+Yes, and you should not rewrite anything. Two approaches:
 
-1. **渐进入层**：新代码按四层放置，旧代码遇到时顺手归位。骨架里的
-   CLAUDE.md 是给 AI 的增量约束，不要求一次性重组旧代码。
-2. **只装规则不装骨架**：如果项目结构已稳定，可以只装启动关卡钩子和任务台账，跳过骨架铺设。SKILL.md 的安装流程支持逐项选择。
+1. **Migrate gradually.** Put new code in the four layers, and move old code over when you happen to touch it. The scaffold's `CLAUDE.md` is an incremental constraint for the AI, not a demand to reorganize everything at once.
+2. **Rules without the scaffold.** If the project structure is already settled, install only the startup gate and the task ledger and skip the scaffold. The installer walks through each piece separately.
 
-## 钩子误触发/漏触发怎么办？
+## The hook fires too often, or not often enough
 
-- 关键词表在 `hooks/project-startup-gate.py` 的 `KEYWORDS` 正则里，直接增删。
-  中文"做个/开发"这类宽泛词如果误触发太多，删掉它们只留精确词即可。
-- 漏触发同理，把你的常用说法加进去。
-- 钩子是 fail-open 的：脚本出错只会静默跳过，绝不会卡住对话。
-- 验证方法：`echo '{"prompt":"开发一个新功能"}' | python project-startup-gate.py`，
-  输出 JSON 即正常。
+- The keyword list is the `KEYWORDS` regex at the top of `hooks/project-startup-gate.py`. Add and remove freely.
+- Too trigger-happy? Delete the broad terms (`做项目`, `开发`, `scaffold`). Too quiet? Add the phrasings you actually use.
+- The hook is fail-open: if the script errors it exits silently and never blocks your session.
+- To check it by hand: `echo '{"prompt":"开发一个新功能"}' | python project-startup-gate.py` — JSON output means it works. The repo ships a regression suite: `python tests/test_startup_gate.py`.
 
-## 启动关卡会不会让 AI 每个小改动都去搜开源？
+## Will the gate make the AI search open source for every tiny change?
 
-不会。钩子只在消息命中启动关键词时注入指令（新项目/新功能/开发……），
-日常的"改个 bug""调下样式"不会触发。且指令本身写明"一次性小脚本可跳过，
-说明原因即可"，AI 有裁量空间。
+No. It only injects instructions when a message matches kickoff keywords (new project / new feature / build me). Everyday work — fixing a bug, adjusting styles, refactoring — does not trigger it. The injected text also states that one-off scripts may skip layering as long as the reason is given, so the AI keeps its judgment.
 
-## 多个 AI 真的不会打架吗？
+## Do multiple AIs really stop colliding?
 
-靠三件事叠加：
+Three mechanisms stacked:
 
-1. **任务台账**：先占坑再动代码——每个任务一个档案文件，谁在办、干到哪、心跳何时，一目了然；在办的任务别人不碰，2 小时没心跳视为离岗可接管
-2. **git 节点**：干完一块立刻 commit，即使覆盖了也能回档
-3. **接口清单 + 交接档案**：AI 之间只认 README 里的对外接口清单和台账里的交接备注，不靠口头转述
+1. **The task ledger** — claim before you code. One file per task showing who holds it, how far along it is, and when it last checked in. Nobody touches an in-progress task; two hours without a heartbeat means the owner walked away.
+2. **Git nodes** — commit as soon as a piece is done, so even a bad overwrite is recoverable.
+3. **Interface lists plus handoff notes** — AIs read each other's public interface lists in the layer READMEs and the handoff notes in the ledger. Nothing relies on verbal summaries.
 
-这套是"降低概率 + 兜底可恢复"，不是数学意义上的互斥锁。真打架时 git 回档
-就是后悔药。
+This is *reduce the odds plus stay recoverable*, not a mathematical mutex. When a collision does happen, `git` is the undo button.
 
-## 和 Cursor / Windsurf 等其他工具能用吗？
+## Does it work with Cursor, Windsurf, and other tools?
 
-规则文件（分层宪法、任务台账）是纯 Markdown，任何支持自定义规则/指令文件的
-工具都能直接用（Cursor 的 `.cursorrules`、`.cursor/rules/` 等）。钩子部分
-目前是 Claude Code 专属机制；其他工具可以在其全局指令文件里写入"开源优先
-+ 分层评估"两条硬规则作为替代（SKILL.md 第 2 步有说明）。
+The rules files (the architecture constitution, the task ledger) are plain Markdown, so any tool that supports custom rules or instruction files can use them directly. The repo ships a ready-made Cursor rule at [`.cursor/rules/ai-crew.mdc`](../.cursor/rules/ai-crew.mdc) and a generic [AGENTS.md](../AGENTS.md) that Codex and other agents read.
 
-## 这套东西对非程序员有用吗？
+The hook itself is Claude Code-specific. On other tools, write the two hard rules — open-source-first and layering evaluation — into that tool's global instruction file as a substitute. The installer does this for you when it detects a non-Claude-Code primary tool.
 
-这正是它的设计场景之一。作者本人是非技术 PM，全程通过"说需求 → AI 实现"
-维护多个项目。所有汇报要求用非技术语言，分层让 AI 自己定位 bug 变成查表，
-开源优先避免 AI 闷头造轮子浪费时间。
+## Is this useful if I'm not a programmer?
+
+That is one of its design targets. The author is a non-technical product manager who maintains several projects by describing intent and letting the AI implement. Every rule here exists to make that workflow safer: layering turns bug localization into a table lookup, the open-source gate stops the AI from burning hours reinventing a wheel, and the ledger makes handoffs between tools traceable without anyone reading code.

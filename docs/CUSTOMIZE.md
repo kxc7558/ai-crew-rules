@@ -1,62 +1,65 @@
-# 定制指南
+# Customize
 
-## 改启动关键词
+## Change the startup keywords
 
-编辑 `hooks/project-startup-gate.py` 顶部的 `KEYWORDS` 正则：
+Edit the `KEYWORDS` regex at the top of `hooks/project-startup-gate.py`:
 
 ```python
 KEYWORDS = re.compile(
     r"新建项目|新项目|做项目|做个|做一个|搭一个|搭建|开发|新功能|加功能|加一个功能|"
-    r"新需求|新应用|新网站|新工具|从零开始|从0开始|new project|new app|build me",
-    re.IGNORECASE,
+    r"新需求|新应用|新网站|新工具|从零开始|从0开始|"
+    r"\bnew (project|app|application|website|site|tool|feature|service|module|component|script|package|library)\b|"
+    ...
 )
 ```
 
-- 觉得太灵敏 → 删宽泛词（"做个""开发"）
-- 觉得太迟钝 → 加你的常用说法
-- 纯英文环境 → 只留 `new project|new app|build me|new feature|implement` 等
+- Too sensitive → delete the broad terms (`做项目`, `开发`, `scaffold`).
+- Too quiet → add the phrasings you actually type.
+- English-only workspace → keep the `\bnew (project|app|feature|...)\b` and `add a feature` patterns and drop the Chinese alternation.
 
-## 改注入的关卡指令
+After editing, run the regression suite so you don't silently break a case:
 
-同一文件里的 `GATE` 常量就是注入给 AI 的完整指令文本，可按团队规范改写。
-注意保持两条核心：①开源优先硬门槛 ②分层评估。
+```bash
+python tests/test_startup_gate.py
+```
 
-## 换分层目录名
+## Change the injected gate text
 
-前端项目常把目录映射为：
+The `GATE` constant in the same file is the exact instruction injected into the AI's context. Rewrite it for your team's conventions, but keep the two load-bearing parts: **open-source-first as a hard gate** and **the layering evaluation**.
 
-| 标准层 | 前端映射 |
-|--------|---------|
-| api/ | pages/ 或 views/（对外展示） |
-| service/ | store/ 或 composables/（状态与逻辑） |
-| db/ | api-client/ 或 services-data/（数据获取封装） |
-| shared/ | utils/ 或 components/（通用件） |
+## Remap layer directory names
 
-方向规则不变：展示层 → 逻辑层 → 数据层，只准向下调。
-改完记得同步更新各层 README 和 CLAUDE.md 里的层名。
+Frontend projects usually map the layers like this:
 
-## 适配其他 AI 工具
+| Standard layer | Frontend mapping |
+| --- | --- |
+| `api/` | `pages/` or `views/` — what the user sees |
+| `service/` | `store/` or `composables/` — state and logic |
+| `db/` | `api-client/` or `services-data/` — data fetching |
+| `shared/` | `utils/` or `components/` — generic pieces |
 
-| 工具 | 全局规则文件 | 骨架宪法 |
-|------|-------------|---------|
-| Claude Code | `~/.claude/rules/common/*.md` + `~/.claude/CLAUDE.md` | 项目根 `CLAUDE.md` |
-| Codex | `~/.codex/AGENTS.md` | 项目根 `AGENTS.md` |
-| Cursor | `.cursor/rules/*.mdc` 或 `.cursorrules` | 同左 |
-| 其他 | 该工具的自定义指令入口 | 项目根对应文件 |
+The direction rule is unchanged: presentation → logic → data, downward calls only. After renaming, update the layer names in each layer README and in `CLAUDE.md`.
 
-宪法内容（分层地图、职责表、接口清单）和台账机制都是纯 Markdown，任何工具通用；
-差异只在文件放的位置。
+## Adapt to another AI tool
 
-## 任务台账定制
+| Tool | Global rules file | Project constitution |
+| --- | --- | --- |
+| Claude Code | `~/.claude/rules/common/*.md` + `~/.claude/CLAUDE.md` | `CLAUDE.md` at the repo root |
+| Codex | `~/.codex/AGENTS.md` | `AGENTS.md` at the repo root |
+| Cursor | `.cursor/rules/*.mdc` or `.cursorrules` | same |
+| Anything else | that tool's custom instruction entry point | the matching file at the repo root |
 
-`templates/rules/ai-task-ledger.md` 通常是开箱即用（它不按人定制），可调的只有两处：
+The constitution (layer map, responsibility table, interface lists) and the ledger mechanism are plain Markdown and portable to any tool. Only the file location differs.
 
-1. **台账位置**：单项目 → 各仓库 `data/ai-tasks/`（随 git 走）；多项目 → 共享目录（如知识库 `ai-tasks/`），文件里注明项目名
-2. **心跳时限**：默认 2 小时无更新视为离岗可接管。AI 工具响应快、协作紧密的团队可以缩到 1 小时；长任务（跑数据/训练）的建议放宽到半天，并在任务档案里注明预期时长
+## Tune the task ledger
 
-改完同步更新台账目录里的 `_README.md`。
+`templates/rules/ai-task-ledger.md` is meant to work as-is — it deliberately is not customized per person. Two things are worth adjusting:
 
-## 贡献
+1. **Where the ledger lives.** One project → `data/ai-tasks/` inside that repo, versioned with git. Many projects → a shared directory (a notes vault, say), with the project name in each file's frontmatter.
+2. **The heartbeat window.** Default: two hours without an update means the owner walked away and another AI may take over. Tight, fast-moving teams can shorten it to one hour. Long-running jobs (data pipelines, training) are better at half a day, with the expected duration written into the task file.
 
-欢迎 PR：更多语言的关键词表、更多项目类型的层名映射、其他工具的适配
-说明。保持每个文件单一职责、总量精简。
+Update the ledger directory's `_README.md` to match whatever you change.
+
+## Contributing
+
+Pull requests welcome: keyword tables for more languages, layer-name mappings for more project types, and adapter notes for other tools. Keep each file single-purpose and the total size small.

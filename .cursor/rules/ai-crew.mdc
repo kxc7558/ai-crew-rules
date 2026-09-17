@@ -1,0 +1,85 @@
+---
+description: AI Crew Rules — four-layer architecture, open-source-first gate, and multi-AI task ledger. Apply when starting a new project or feature, writing code in this repo, or coordinating more than one AI tool on the same codebase.
+alwaysApply: true
+---
+
+# AI Crew Rules
+
+Discipline for AI coding crews. Humans describe intent; the AI implements within this structure.
+
+## 1. Open-source first (hard gate)
+
+Before writing ANY new code for a project or feature kickoff, search the open-source community (GitHub, npm/PyPI, HuggingFace, package registries).
+
+Adoption priority:
+
+1. Use as-is
+2. Port and adapt
+3. Wrap
+4. Build from scratch
+
+You may only write original code after a real search confirms nothing suitable exists — and you must tell the user what you searched and why nothing fit. Do not skip this step silently.
+
+## 2. Layered architecture
+
+| Layer | Directory | Role | May do | Must not do |
+| --- | --- | --- | --- | --- |
+| Interface | `api/` | Front desk | Receive requests, validate params, return results | Business rules, direct data access |
+| Business | `service/` | Brain | Business rules, orchestration | Direct DB access |
+| Data | `db/` | Warehouse keeper | Data CRUD | Business decisions |
+| Common | `shared/` | Toolbox | Generic utilities | Business rules, depending on other layers |
+
+**Call direction (iron rule):**
+
+- Downward only: `api → service → db`
+- All layers may use `shared`; `shared` depends on nothing
+- No reverse calls, no skipping layers (`api` never imports `db` directly)
+- Directory names may map to project type (frontend: `pages/`, `store/`) — the direction rule stays unchanged
+
+**Bug location:** display or entry wrong → `api`; result computed wrong → `service`; data access wrong → `db`; utility wrong → `shared`. Fix only the located layer.
+
+**Interface contracts:** each layer directory's README ends with a *Public Interface List* registering what it exposes. While that list is unchanged, changing a layer's implementation touches nothing else. To change an interface: update the list first, then the implementation, then check all callers.
+
+**When layering is not warranted:** one-off scripts and throwaway experiments. Skipping layers is fine — state the reason in one line and move on.
+
+## 3. Multi-AI task ledger
+
+If more than one AI tool works on this repo, use a shared ledger at `data/ai-tasks/` — one Markdown file per task, frontmatter carries the state:
+
+```markdown
+---
+task: switch exports to month grouping
+state: in-progress
+owner: cursor
+claimed_at: 2026-09-13 10:00
+heartbeat: 2026-09-13 10:40
+---
+## Goal
+What "done" means, in one or two sentences.
+
+## Progress
+- 10:00 claimed, reading the export module
+
+## Handoff notes
+(left empty until done or blocked)
+```
+
+```
+open ──claim──▶ in-progress ──finish──▶ done
+                   │
+                   └──stuck──▶ blocked ──unblock──▶ open
+```
+
+1. **Claim before code.** No ledger entry, no edits. Read-only review never needs to claim.
+2. **One task, one owner.** Two AIs never share an in-progress task.
+3. **Heartbeat or let go.** Two hours without a heartbeat means the owner walked away; another AI may take over and must note the takeover in Progress.
+4. **Commit at every done step**, so even a collision is recoverable.
+5. **Hand off through the ledger**, not verbal summaries.
+
+## 4. New projects
+
+Copy the layered scaffold, then `git init` and commit the scaffold as the first node before implementing anything.
+
+---
+
+Full docs: <https://github.com/kxc7558/ai-crew-rules>

@@ -15,8 +15,16 @@ import sys
 
 # Kickoff keywords — customize freely (add your language's phrasings)
 KEYWORDS = re.compile(
+    # Chinese
     r"新建项目|新项目|做项目|做个|做一个|搭一个|搭建|开发|新功能|加功能|加一个功能|"
-    r"新需求|新应用|新网站|新工具|从零开始|从0开始|new project|new app|build me",
+    r"新需求|新应用|新网站|新工具|从零开始|从0开始|"
+    # English
+    r"\bnew (project|app|application|website|site|tool|feature|service|module|component|script|package|library)\b|"
+    r"\b(add|adding|implement|implementing|write|writing) (a |an |the )?(new )?(feature|functionality|module|endpoint|page)\b|"
+    r"\bbuild (me|us|a new|an app|a project|a tool)\b|"
+    r"\b(let's|lets|i want to|help me) (build|create|make|start)\b|"
+    r"\b(create|creating|start|starting|set up|setting up|spin up|scaffold|bootstrap) (a |an |the )?(new )?(project|app|application|website|site|tool|service|repo|repository)\b|"
+    r"\bfrom scratch\b",
     re.IGNORECASE,
 )
 

@@ -1,0 +1,27 @@
+{
+  "name": "ai-crew",
+  "version": "1.0.1",
+  "description": "Discipline for AI coding crews: a four-layer architecture scaffold, an open-source-first startup gate, and a multi-AI task ledger that stops agents from overwriting each other.",
+  "author": {
+    "name": "kxc7558"
+  },
+  "homepage": "https://github.com/kxc7558/ai-crew-rules",
+  "repository": "https://github.com/kxc7558/ai-crew-rules",
+  "license": "MIT",
+  "keywords": [
+    "claude-code",
+    "agents",
+    "skills",
+    "hooks",
+    "architecture",
+    "layered-architecture",
+    "multi-agent",
+    "task-ledger",
+    "open-source-first",
+    "best-practices",
+    "workflow"
+  ],
+  "skills": [
+    "./skills/ai-crew"
+  ]
+}
